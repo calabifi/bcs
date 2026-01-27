@@ -684,7 +684,14 @@ where
             return Err(Error::ExpectedMapValue);
         }
         self.entries.sort_unstable_by(|e1, e2| e1.0.cmp(&e2.0));
-        self.entries.dedup_by(|e1, e2| e1.0.eq(&e2.0));
+
+        // Security: Detect and reject duplicate keys instead of silently dropping them.
+        // This ensures serialization is lossless and maintains data integrity.
+        for i in 1..self.entries.len() {
+            if self.entries[i].0 == self.entries[i - 1].0 {
+                return Err(Error::NonCanonicalMap);
+            }
+        }
 
         let len = self.entries.len();
         self.serializer.output_seq_len(len)?;

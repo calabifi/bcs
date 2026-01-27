@@ -869,3 +869,93 @@ fn test_exceeded_max_sequence_length() {
     let err = from_bytes::<Vec<u8>>(&bytes).unwrap_err();
     assert!(matches!(err, Error::ExceededMaxLen(_)));
 }
+
+// ============================================================================
+// Security tests
+// ============================================================================
+
+#[test]
+fn test_memory_amplification_protection() {
+    // Security test: Ensure that claiming a large length with insufficient data
+    // returns Eof quickly without attempting to allocate large amounts of memory.
+    //
+    // A 5-byte payload claiming 1 million elements should fail immediately,
+    // not after trying to allocate memory for 1 million elements.
+
+    // ULEB128 encoding of 1,000,000 = 0xF4240
+    // 0x40 | 0x80 = 0xC0, 0x84 | 0x80 = 0x84 (wait, let me recalculate)
+    // 1,000,000 = 0xF4240
+    // Byte 0: 0x40 | 0x80 = 0xC0 (bits 0-6 = 64)
+    // Byte 1: 0x48 | 0x80 = 0xC8 (bits 7-13 = 72) -- wait let me do this properly
+    // 1,000,000 in binary: 11110100001001000000
+    // Split into 7-bit groups from LSB: 1000000 (64), 0100100 (36), 0111101 (61)
+    // So: 0xC0 (64 + 0x80), 0xA4 (36 + 0x80), 0x3D (61, no continuation)
+    let bytes = vec![0xC0, 0x84, 0x3D]; // ULEB128 for 1,000,000
+
+    let err = from_bytes::<Vec<u8>>(&bytes).unwrap_err();
+    // Should fail with Eof because we only have 0 bytes of actual data,
+    // but claimed 1,000,000 bytes
+    assert!(matches!(err, Error::Eof));
+}
+
+#[test]
+fn test_memory_amplification_protection_string() {
+    // Test the same protection for strings
+    // Claim 10,000 bytes but provide only 2
+    let bytes = vec![0x90, 0x4E, b'h', b'i']; // ULEB128 for 10,000, then "hi"
+
+    let err = from_bytes::<String>(&bytes).unwrap_err();
+    assert!(matches!(err, Error::Eof));
+}
+
+#[test]
+fn test_memory_amplification_small_valid_length() {
+    // Make sure valid small lengths still work
+    let bytes = vec![0x02, 0x41, 0x42]; // length 2, then "AB"
+    let result: Vec<u8> = from_bytes(&bytes).unwrap();
+    assert_eq!(result, vec![0x41, 0x42]);
+}
+
+#[test]
+fn test_duplicate_map_keys_serialization() {
+    // Create a HashMap and manually serialize it to test the duplicate detection.
+    // Since HashMap doesn't allow duplicate keys directly, we need to test via
+    // serde's serialize_map interface with a custom type.
+    #[derive(Debug)]
+    struct DuplicateKeyMap;
+
+    impl Serialize for DuplicateKeyMap {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            use serde::ser::SerializeMap;
+            let mut map = serializer.serialize_map(Some(2))?;
+            map.serialize_entry(&1u32, &"first")?;
+            map.serialize_entry(&1u32, &"second")?; // Duplicate key!
+            map.end()
+        }
+    }
+
+    let err = to_bytes(&DuplicateKeyMap).unwrap_err();
+    assert!(matches!(err, Error::NonCanonicalMap));
+}
+
+#[test]
+fn test_map_serialization_no_duplicates() {
+    use std::collections::HashMap;
+
+    // Normal map without duplicates should work fine
+    let mut map = HashMap::new();
+    map.insert(1u32, "one");
+    map.insert(2u32, "two");
+    map.insert(3u32, "three");
+
+    let bytes = to_bytes(&map).unwrap();
+    let result: HashMap<u32, String> = from_bytes(&bytes).unwrap();
+
+    assert_eq!(result.len(), 3);
+    assert_eq!(result.get(&1).map(String::as_str), Some("one"));
+    assert_eq!(result.get(&2).map(String::as_str), Some("two"));
+    assert_eq!(result.get(&3).map(String::as_str), Some("three"));
+}

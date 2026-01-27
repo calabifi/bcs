@@ -251,11 +251,20 @@ impl<'de> Deserializer<'de> {
         }
     }
 
+    /// Parse a sequence length, validating against both the maximum allowed length
+    /// and the remaining input size to prevent memory amplification attacks.
     #[inline]
     fn parse_length(&mut self) -> Result<usize> {
         let len = self.parse_u32_from_uleb128()? as usize;
         if len > crate::MAX_SEQUENCE_LENGTH {
             return Err(Error::ExceededMaxLen(len));
+        }
+        // Security: Validate that the claimed length is plausible given remaining input.
+        // This prevents memory amplification attacks where a small payload claims a huge
+        // length, causing pre-allocation of gigabytes of memory before we detect EOF.
+        // Note: For sequences of multi-byte elements, this is a lower bound check only.
+        if len > self.input.len() {
+            return Err(Error::Eof);
         }
         Ok(len)
     }
