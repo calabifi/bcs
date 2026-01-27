@@ -27,21 +27,19 @@ pub fn serialize_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("serialize");
 
     // Primitive types
-    let u64_val: u64 = 0x1234567890ABCDEF;
-    group.bench_function("u64", |b| {
-        b.iter(|| to_bytes(black_box(&u64_val)).unwrap())
-    });
+    let u64_val: u64 = 0x1234_5678_90AB_CDEF;
+    group.bench_function("u64", |b| b.iter(|| to_bytes(black_box(&u64_val)).unwrap()));
 
     // Simple struct
     let simple = SimpleStruct {
-        a: 12345678901234,
-        b: 1234567890,
+        a: 12_345_678_901_234,
+        b: 1_234_567_890,
         c: 12345,
         d: 123,
         e: true,
     };
     group.bench_function("simple_struct", |b| {
-        b.iter(|| to_bytes(black_box(&simple)).unwrap())
+        b.iter(|| to_bytes(black_box(&simple)).unwrap());
     });
 
     // Complex struct with nested data
@@ -52,21 +50,21 @@ pub fn serialize_benchmarks(c: &mut Criterion) {
         nested: Some(simple.clone()),
     };
     group.bench_function("complex_struct", |b| {
-        b.iter(|| to_bytes(black_box(&complex)).unwrap())
+        b.iter(|| to_bytes(black_box(&complex)).unwrap());
     });
 
     // Test pre-allocation benefit
     let serialized_size = to_bytes(&complex).unwrap().len();
     group.bench_function("complex_struct_with_capacity", |b| {
-        b.iter(|| to_bytes_with_capacity(black_box(&complex), serialized_size).unwrap())
+        b.iter(|| to_bytes_with_capacity(black_box(&complex), serialized_size).unwrap());
     });
 
     // Vec of u64s at various sizes
-    for size in [10, 100, 1000, 10000].iter() {
+    for size in &[10_u64, 100, 1000, 10000] {
         let vec: Vec<u64> = (0..*size).collect();
-        group.throughput(Throughput::Elements(*size as u64));
+        group.throughput(Throughput::Elements(*size));
         group.bench_with_input(BenchmarkId::new("vec_u64", size), &vec, |b, v| {
-            b.iter(|| to_bytes(black_box(v)).unwrap())
+            b.iter(|| to_bytes(black_box(v)).unwrap());
         });
     }
 
@@ -74,10 +72,10 @@ pub fn serialize_benchmarks(c: &mut Criterion) {
     let short_string = "hello".to_string();
     let long_string = "a".repeat(1000);
     group.bench_function("short_string", |b| {
-        b.iter(|| to_bytes(black_box(&short_string)).unwrap())
+        b.iter(|| to_bytes(black_box(&short_string)).unwrap());
     });
     group.bench_function("long_string", |b| {
-        b.iter(|| to_bytes(black_box(&long_string)).unwrap())
+        b.iter(|| to_bytes(black_box(&long_string)).unwrap());
     });
 
     // Maps
@@ -88,10 +86,10 @@ pub fn serialize_benchmarks(c: &mut Criterion) {
         hash_map.insert(i, i);
     }
     group.bench_function("btree_map_2000", |b| {
-        b.iter(|| to_bytes(black_box(&btree_map)).unwrap())
+        b.iter(|| to_bytes(black_box(&btree_map)).unwrap());
     });
     group.bench_function("hash_map_2000", |b| {
-        b.iter(|| to_bytes(black_box(&hash_map)).unwrap())
+        b.iter(|| to_bytes(black_box(&hash_map)).unwrap());
     });
 
     group.finish();
@@ -101,22 +99,22 @@ pub fn deserialize_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("deserialize");
 
     // Primitive types
-    let u64_bytes = to_bytes(&0x1234567890ABCDEFu64).unwrap();
+    let u64_bytes = to_bytes(&0x1234_5678_90AB_CDEF_u64).unwrap();
     group.bench_function("u64", |b| {
-        b.iter(|| from_bytes::<u64>(black_box(&u64_bytes)).unwrap())
+        b.iter(|| from_bytes::<u64>(black_box(&u64_bytes)).unwrap());
     });
 
     // Simple struct
     let simple = SimpleStruct {
-        a: 12345678901234,
-        b: 1234567890,
+        a: 12_345_678_901_234,
+        b: 1_234_567_890,
         c: 12345,
         d: 123,
         e: true,
     };
     let simple_bytes = to_bytes(&simple).unwrap();
     group.bench_function("simple_struct", |b| {
-        b.iter(|| from_bytes::<SimpleStruct>(black_box(&simple_bytes)).unwrap())
+        b.iter(|| from_bytes::<SimpleStruct>(black_box(&simple_bytes)).unwrap());
     });
 
     // Complex struct
@@ -128,16 +126,16 @@ pub fn deserialize_benchmarks(c: &mut Criterion) {
     };
     let complex_bytes = to_bytes(&complex).unwrap();
     group.bench_function("complex_struct", |b| {
-        b.iter(|| from_bytes::<ComplexStruct>(black_box(&complex_bytes)).unwrap())
+        b.iter(|| from_bytes::<ComplexStruct>(black_box(&complex_bytes)).unwrap());
     });
 
     // Vec of u64s at various sizes
-    for size in [10, 100, 1000, 10000].iter() {
+    for size in &[10_u64, 100, 1000, 10000] {
         let vec: Vec<u64> = (0..*size).collect();
         let vec_bytes = to_bytes(&vec).unwrap();
-        group.throughput(Throughput::Elements(*size as u64));
+        group.throughput(Throughput::Elements(*size));
         group.bench_with_input(BenchmarkId::new("vec_u64", size), &vec_bytes, |b, bytes| {
-            b.iter(|| from_bytes::<Vec<u64>>(black_box(bytes)).unwrap())
+            b.iter(|| from_bytes::<Vec<u64>>(black_box(bytes)).unwrap());
         });
     }
 
@@ -145,10 +143,10 @@ pub fn deserialize_benchmarks(c: &mut Criterion) {
     let short_string_bytes = to_bytes(&"hello".to_string()).unwrap();
     let long_string_bytes = to_bytes(&"a".repeat(1000)).unwrap();
     group.bench_function("short_string", |b| {
-        b.iter(|| from_bytes::<String>(black_box(&short_string_bytes)).unwrap())
+        b.iter(|| from_bytes::<String>(black_box(&short_string_bytes)).unwrap());
     });
     group.bench_function("long_string", |b| {
-        b.iter(|| from_bytes::<String>(black_box(&long_string_bytes)).unwrap())
+        b.iter(|| from_bytes::<String>(black_box(&long_string_bytes)).unwrap());
     });
 
     // Maps
@@ -158,7 +156,7 @@ pub fn deserialize_benchmarks(c: &mut Criterion) {
     }
     let map_bytes = to_bytes(&btree_map).unwrap();
     group.bench_function("btree_map_2000", |b| {
-        b.iter(|| from_bytes::<BTreeMap<u32, u32>>(black_box(&map_bytes)).unwrap())
+        b.iter(|| from_bytes::<BTreeMap<u32, u32>>(black_box(&map_bytes)).unwrap());
     });
 
     group.finish();

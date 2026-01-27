@@ -129,9 +129,10 @@ struct WriteCounter(usize);
 impl std::io::Write for WriteCounter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let len = buf.len();
-        self.0 = self.0.checked_add(len).ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::Other, "WriteCounter reached max value")
-        })?;
+        self.0 = self
+            .0
+            .checked_add(len)
+            .ok_or_else(|| std::io::Error::other("WriteCounter reached max value"))?;
         Ok(len)
     }
 
@@ -256,7 +257,7 @@ where
 
     #[inline]
     fn serialize_bool(self, v: bool) -> Result<()> {
-        self.output.write_all(&[v as u8])?;
+        self.output.write_all(&[u8::from(v)])?;
         Ok(())
     }
 

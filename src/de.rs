@@ -40,10 +40,10 @@ where
 {
     let mut deserializer = Deserializer::new(bytes, crate::MAX_CONTAINER_DEPTH);
     let t = T::deserialize(&mut deserializer)?;
-    deserializer.end().map(move |_| t)
+    deserializer.end().map(move |()| t)
 }
 
-/// Same as `from_bytes` but use `limit` as max container depth instead of MAX_CONTAINER_DEPTH`
+/// Same as `from_bytes` but use `limit` as max container depth instead of `MAX_CONTAINER_DEPTH`
 pub fn from_bytes_with_limit<'a, T>(bytes: &'a [u8], limit: usize) -> Result<T>
 where
     T: Deserialize<'a>,
@@ -55,7 +55,7 @@ where
     }
     let mut deserializer = Deserializer::new(bytes, limit);
     let t = T::deserialize(&mut deserializer)?;
-    deserializer.end().map(move |_| t)
+    deserializer.end().map(move |()| t)
 }
 
 /// Perform a stateful deserialization from a `&[u8]` using the provided `seed`.
@@ -65,10 +65,10 @@ where
 {
     let mut deserializer = Deserializer::new(bytes, crate::MAX_CONTAINER_DEPTH);
     let t = seed.deserialize(&mut deserializer)?;
-    deserializer.end().map(move |_| t)
+    deserializer.end().map(move |()| t)
 }
 
-/// Same as `from_bytes_seed` but use `limit` as max container depth instead of MAX_CONTAINER_DEPTH`
+/// Same as `from_bytes_seed` but use `limit` as max container depth instead of `MAX_CONTAINER_DEPTH`
 pub fn from_bytes_seed_with_limit<'a, T>(seed: T, bytes: &'a [u8], limit: usize) -> Result<T::Value>
 where
     T: DeserializeSeed<'a>,
@@ -80,7 +80,7 @@ where
     }
     let mut deserializer = Deserializer::new(bytes, limit);
     let t = seed.deserialize(&mut deserializer)?;
-    deserializer.end().map(move |_| t)
+    deserializer.end().map(move |()| t)
 }
 
 /// Deserialization implementation for BCS
@@ -527,11 +527,11 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
     }
 
     // BCS does not utilize identifiers, so throw them away
-    fn deserialize_identifier<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        self.deserialize_bytes(_visitor)
+        self.deserialize_bytes(visitor)
     }
 
     // BCS is not a self-describing format so we can't implement `deserialize_ignored_any`
