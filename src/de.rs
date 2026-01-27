@@ -3,7 +3,7 @@
 
 use crate::error::{Error, Result};
 use serde::de::{self, Deserialize, DeserializeSeed, IntoDeserializer, Visitor};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 /// Deserializes a `&[u8]` into a type.
 ///
@@ -112,16 +112,19 @@ impl<'de> Deserializer<'de> {
 }
 
 impl<'de> Deserializer<'de> {
+    #[inline]
     fn peek(&mut self) -> Result<u8> {
         self.input.first().copied().ok_or(Error::Eof)
     }
 
+    #[inline]
     fn next(&mut self) -> Result<u8> {
         let byte = self.peek()?;
         self.input = &self.input[1..];
         Ok(byte)
     }
 
+    #[inline]
     fn parse_bool(&mut self) -> Result<bool> {
         let byte = self.next()?;
 
@@ -132,51 +135,73 @@ impl<'de> Deserializer<'de> {
         }
     }
 
-    fn fill_slice(&mut self, slice: &mut [u8]) -> Result<()> {
-        for byte in slice {
-            *byte = self.next()?;
+    /// Reads exactly `n` bytes from input, returning a slice.
+    /// This is more efficient than byte-by-byte copying.
+    #[inline]
+    fn read_bytes(&mut self, n: usize) -> Result<&'de [u8]> {
+        if self.input.len() < n {
+            return Err(Error::Eof);
         }
-        Ok(())
+        let (bytes, rest) = self.input.split_at(n);
+        self.input = rest;
+        Ok(bytes)
     }
 
+    #[inline]
     fn parse_u8(&mut self) -> Result<u8> {
         self.next()
     }
 
+    #[inline]
     fn parse_u16(&mut self) -> Result<u16> {
-        let mut le_bytes = [0; 2];
-        self.fill_slice(&mut le_bytes)?;
-        Ok(u16::from_le_bytes(le_bytes))
+        let bytes = self.read_bytes(2)?;
+        // SAFETY: We just verified we have exactly 2 bytes
+        Ok(u16::from_le_bytes([bytes[0], bytes[1]]))
     }
 
+    #[inline]
     fn parse_u32(&mut self) -> Result<u32> {
-        let mut le_bytes = [0; 4];
-        self.fill_slice(&mut le_bytes)?;
-        Ok(u32::from_le_bytes(le_bytes))
+        let bytes = self.read_bytes(4)?;
+        // SAFETY: We just verified we have exactly 4 bytes
+        Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
     }
 
+    #[inline]
     fn parse_u64(&mut self) -> Result<u64> {
-        let mut le_bytes = [0; 8];
-        self.fill_slice(&mut le_bytes)?;
-        Ok(u64::from_le_bytes(le_bytes))
+        let bytes = self.read_bytes(8)?;
+        // Use try_into for cleaner conversion from slice to array
+        Ok(u64::from_le_bytes(bytes.try_into().unwrap()))
     }
 
+    #[inline]
     fn parse_u128(&mut self) -> Result<u128> {
-        let mut le_bytes = [0; 16];
-        self.fill_slice(&mut le_bytes)?;
-        Ok(u128::from_le_bytes(le_bytes))
+        let bytes = self.read_bytes(16)?;
+        // Use try_into for cleaner conversion from slice to array
+        Ok(u128::from_le_bytes(bytes.try_into().unwrap()))
     }
 
+    /// Parse a ULEB128-encoded u32. Optimized for common small values.
     #[allow(clippy::arithmetic_side_effects)]
+    #[inline]
     fn parse_u32_from_uleb128(&mut self) -> Result<u32> {
-        let mut value: u64 = 0;
-        for shift in (0..32).step_by(7) {
+        // Fast path: single byte (values 0-127)
+        let first_byte = self.next()?;
+        if first_byte < 0x80 {
+            return Ok(u32::from(first_byte));
+        }
+
+        // Multi-byte path
+        let mut value = u64::from(first_byte & 0x7f);
+        let mut shift = 7;
+
+        loop {
             let byte = self.next()?;
             let digit = byte & 0x7f;
             value |= u64::from(digit) << shift;
+
             // If the highest bit of `byte` is 0, return the final value.
             if digit == byte {
-                if shift > 0 && digit == 0 {
+                if digit == 0 {
                     // We only accept canonical ULEB128 encodings, therefore the
                     // heaviest (and last) base-128 digit must be non-zero.
                     return Err(Error::NonCanonicalUleb128Encoding);
@@ -185,11 +210,16 @@ impl<'de> Deserializer<'de> {
                 return u32::try_from(value)
                     .map_err(|_| Error::IntegerOverflowDuringUleb128Decoding);
             }
+
+            shift += 7;
+            if shift >= 35 {
+                // Decoded integer must not overflow.
+                return Err(Error::IntegerOverflowDuringUleb128Decoding);
+            }
         }
-        // Decoded integer must not overflow.
-        Err(Error::IntegerOverflowDuringUleb128Decoding)
     }
 
+    #[inline]
     fn parse_length(&mut self) -> Result<usize> {
         let len = self.parse_u32_from_uleb128()? as usize;
         if len > crate::MAX_SEQUENCE_LENGTH {
@@ -198,18 +228,20 @@ impl<'de> Deserializer<'de> {
         Ok(len)
     }
 
+    #[inline]
     fn parse_bytes(&mut self) -> Result<&'de [u8]> {
         let len = self.parse_length()?;
-        let slice = self.input.get(..len).ok_or(Error::Eof)?;
-        self.input = &self.input[len..];
-        Ok(slice)
+        // Use read_bytes for consistent and efficient slice access
+        self.read_bytes(len)
     }
 
+    #[inline]
     fn parse_string(&mut self) -> Result<&'de str> {
         let slice = self.parse_bytes()?;
         std::str::from_utf8(slice).map_err(|_| Error::Utf8)
     }
 
+    #[inline]
     fn enter_named_container(&mut self, name: &'static str) -> Result<()> {
         if self.max_remaining_depth == 0 {
             return Err(Error::ExceededContainerDepthLimit(name));
@@ -218,6 +250,7 @@ impl<'de> Deserializer<'de> {
         Ok(())
     }
 
+    #[inline]
     fn leave_named_container(&mut self) {
         self.max_remaining_depth += 1;
     }
@@ -234,6 +267,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         Err(Error::NotSupported("deserialize_any"))
     }
 
+    #[inline]
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -241,6 +275,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_bool(self.parse_bool()?)
     }
 
+    #[inline]
     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -248,6 +283,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_i8(self.parse_u8()? as i8)
     }
 
+    #[inline]
     fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -255,6 +291,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_i16(self.parse_u16()? as i16)
     }
 
+    #[inline]
     fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -262,6 +299,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_i32(self.parse_u32()? as i32)
     }
 
+    #[inline]
     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -269,6 +307,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_i64(self.parse_u64()? as i64)
     }
 
+    #[inline]
     fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -276,6 +315,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_i128(self.parse_u128()? as i128)
     }
 
+    #[inline]
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -283,6 +323,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_u8(self.parse_u8()?)
     }
 
+    #[inline]
     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -290,6 +331,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_u16(self.parse_u16()?)
     }
 
+    #[inline]
     fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -297,6 +339,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_u32(self.parse_u32()?)
     }
 
+    #[inline]
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -304,6 +347,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_u64(self.parse_u64()?)
     }
 
+    #[inline]
     fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -332,6 +376,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         Err(Error::NotSupported("deserialize_char"))
     }
 
+    #[inline]
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -339,6 +384,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_borrowed_str(self.parse_string()?)
     }
 
+    #[inline]
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -346,6 +392,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         self.deserialize_str(visitor)
     }
 
+    #[inline]
     fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -353,6 +400,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_borrowed_bytes(self.parse_bytes()?)
     }
 
+    #[inline]
     fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -360,6 +408,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         self.deserialize_bytes(visitor)
     }
 
+    #[inline]
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -373,6 +422,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         }
     }
 
+    #[inline]
     fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -380,6 +430,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_unit()
     }
 
+    #[inline]
     fn deserialize_unit_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -390,6 +441,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         r
     }
 
+    #[inline]
     fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -400,6 +452,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         r
     }
 
+    #[inline]
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -408,6 +461,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_seq(SeqDeserializer::new(self, len))
     }
 
+    #[inline]
     fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -415,6 +469,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_seq(SeqDeserializer::new(self, len))
     }
 
+    #[inline]
     fn deserialize_tuple_struct<V>(
         self,
         name: &'static str,
@@ -430,6 +485,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         r
     }
 
+    #[inline]
     fn deserialize_map<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -438,6 +494,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         visitor.visit_map(MapDeserializer::new(self, len))
     }
 
+    #[inline]
     fn deserialize_struct<V>(
         self,
         name: &'static str,
@@ -453,6 +510,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
         r
     }
 
+    #[inline]
     fn deserialize_enum<V>(
         self,
         name: &'static str,
@@ -485,6 +543,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
     }
 
     // BCS is not a human readable format
+    #[inline]
     fn is_human_readable(&self) -> bool {
         false
     }
@@ -496,6 +555,7 @@ struct SeqDeserializer<'a, 'de: 'a> {
 }
 
 impl<'a, 'de> SeqDeserializer<'a, 'de> {
+    #[inline]
     fn new(de: &'a mut Deserializer<'de>, remaining: usize) -> Self {
         Self { de, remaining }
     }
@@ -504,6 +564,7 @@ impl<'a, 'de> SeqDeserializer<'a, 'de> {
 impl<'de> de::SeqAccess<'de> for SeqDeserializer<'_, 'de> {
     type Error = Error;
 
+    #[inline]
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
     where
         T: DeserializeSeed<'de>,
@@ -516,6 +577,7 @@ impl<'de> de::SeqAccess<'de> for SeqDeserializer<'_, 'de> {
         }
     }
 
+    #[inline]
     fn size_hint(&self) -> Option<usize> {
         Some(self.remaining)
     }
@@ -528,6 +590,7 @@ struct MapDeserializer<'a, 'de: 'a> {
 }
 
 impl<'a, 'de> MapDeserializer<'a, 'de> {
+    #[inline]
     fn new(de: &'a mut Deserializer<'de>, remaining: usize) -> Self {
         Self {
             de,
@@ -540,6 +603,7 @@ impl<'a, 'de> MapDeserializer<'a, 'de> {
 impl<'de> de::MapAccess<'de> for MapDeserializer<'_, 'de> {
     type Error = Error;
 
+    #[inline]
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
         K: DeserializeSeed<'de>,
@@ -565,6 +629,7 @@ impl<'de> de::MapAccess<'de> for MapDeserializer<'_, 'de> {
         }
     }
 
+    #[inline]
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: DeserializeSeed<'de>,
@@ -572,6 +637,7 @@ impl<'de> de::MapAccess<'de> for MapDeserializer<'_, 'de> {
         seed.deserialize(&mut *self.de)
     }
 
+    #[inline]
     fn size_hint(&self) -> Option<usize> {
         Some(self.remaining)
     }
@@ -581,6 +647,7 @@ impl<'de> de::EnumAccess<'de> for &mut Deserializer<'de> {
     type Error = Error;
     type Variant = Self;
 
+    #[inline]
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
     where
         V: DeserializeSeed<'de>,
@@ -594,10 +661,12 @@ impl<'de> de::EnumAccess<'de> for &mut Deserializer<'de> {
 impl<'de> de::VariantAccess<'de> for &mut Deserializer<'de> {
     type Error = Error;
 
+    #[inline]
     fn unit_variant(self) -> Result<()> {
         Ok(())
     }
 
+    #[inline]
     fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
     where
         T: DeserializeSeed<'de>,
@@ -605,6 +674,7 @@ impl<'de> de::VariantAccess<'de> for &mut Deserializer<'de> {
         seed.deserialize(self)
     }
 
+    #[inline]
     fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -612,6 +682,7 @@ impl<'de> de::VariantAccess<'de> for &mut Deserializer<'de> {
         de::Deserializer::deserialize_tuple(self, len, visitor)
     }
 
+    #[inline]
     fn struct_variant<V>(self, fields: &'static [&'static str], visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
