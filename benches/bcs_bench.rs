@@ -23,6 +23,11 @@ struct ComplexStruct {
     nested: Option<SimpleStruct>,
 }
 
+/// Benchmarks for BCS serialization.
+///
+/// # Panics
+///
+/// Panics if any serialization operation fails unexpectedly.
 pub fn serialize_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("serialize");
 
@@ -95,6 +100,11 @@ pub fn serialize_benchmarks(c: &mut Criterion) {
     group.finish();
 }
 
+/// Benchmarks for BCS deserialization.
+///
+/// # Panics
+///
+/// Panics if any serialization or deserialization operation fails unexpectedly.
 pub fn deserialize_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("deserialize");
 

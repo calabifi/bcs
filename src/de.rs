@@ -10,6 +10,20 @@ use std::convert::{TryFrom, TryInto};
 /// This function will attempt to interpret `bytes` as the BCS serialized form of `T` and
 /// deserialize `T` from `bytes`.
 ///
+/// # Errors
+///
+/// Returns an error if:
+/// - The bytes do not represent a valid BCS encoding of `T`
+/// - The input ends unexpectedly ([`Error::Eof`])
+/// - A sequence length exceeds [`MAX_SEQUENCE_LENGTH`](crate::MAX_SEQUENCE_LENGTH)
+/// - The container depth exceeds [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH)
+/// - There are remaining bytes after deserialization ([`Error::RemainingInput`])
+/// - An unsupported type is encountered (f32, f64, char)
+/// - UTF-8 validation fails for strings ([`Error::Utf8`])
+/// - A boolean value is not 0 or 1 ([`Error::ExpectedBoolean`])
+/// - An option tag is not 0 or 1 ([`Error::ExpectedOption`])
+/// - Map keys are not in canonical order ([`Error::NonCanonicalMap`])
+///
 /// # Examples
 ///
 /// ```
@@ -43,7 +57,14 @@ where
     deserializer.end().map(move |()| t)
 }
 
-/// Same as `from_bytes` but use `limit` as max container depth instead of `MAX_CONTAINER_DEPTH`
+/// Same as [`from_bytes`] but use `limit` as max container depth instead of
+/// [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH).
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - `limit` exceeds [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH)
+/// - Any error condition from [`from_bytes`] occurs
 pub fn from_bytes_with_limit<'a, T>(bytes: &'a [u8], limit: usize) -> Result<T>
 where
     T: Deserialize<'a>,
@@ -59,6 +80,10 @@ where
 }
 
 /// Perform a stateful deserialization from a `&[u8]` using the provided `seed`.
+///
+/// # Errors
+///
+/// Returns an error if any error condition from [`from_bytes`] occurs.
 pub fn from_bytes_seed<'a, T>(seed: T, bytes: &'a [u8]) -> Result<T::Value>
 where
     T: DeserializeSeed<'a>,
@@ -68,7 +93,14 @@ where
     deserializer.end().map(move |()| t)
 }
 
-/// Same as `from_bytes_seed` but use `limit` as max container depth instead of `MAX_CONTAINER_DEPTH`
+/// Same as [`from_bytes_seed`] but use `limit` as max container depth instead of
+/// [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH).
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - `limit` exceeds [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH)
+/// - Any error condition from [`from_bytes_seed`] occurs
 pub fn from_bytes_seed_with_limit<'a, T>(seed: T, bytes: &'a [u8], limit: usize) -> Result<T::Value>
 where
     T: DeserializeSeed<'a>,

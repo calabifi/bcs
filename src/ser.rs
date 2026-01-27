@@ -6,10 +6,14 @@ use serde::{ser, Serialize};
 
 /// Serialize the given data structure as a `Vec<u8>` of BCS.
 ///
-/// Serialization can fail if `T`'s implementation of `Serialize` decides to
-/// fail, if `T` contains sequences which are longer than `MAX_SEQUENCE_LENGTH`,
-/// or if `T` attempts to serialize an unsupported datatype such as a f32,
-/// f64, or char.
+/// # Errors
+///
+/// Returns an error if:
+/// - `T`'s implementation of [`Serialize`] decides to fail
+/// - `T` contains sequences longer than [`MAX_SEQUENCE_LENGTH`](crate::MAX_SEQUENCE_LENGTH)
+/// - `T` attempts to serialize an unsupported datatype (f32, f64, or char)
+/// - The container depth exceeds [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH)
+/// - An I/O error occurs while writing
 ///
 /// # Examples
 ///
@@ -55,10 +59,14 @@ where
     Ok(output)
 }
 
-/// Same as `to_bytes` but pre-allocates the output buffer with the given capacity.
+/// Same as [`to_bytes`] but pre-allocates the output buffer with the given capacity.
 ///
 /// This can improve performance when you have a good estimate of the serialized size,
 /// as it avoids reallocations during serialization.
+///
+/// # Errors
+///
+/// Returns an error if any error condition from [`to_bytes`] occurs.
 ///
 /// # Examples
 ///
@@ -84,7 +92,14 @@ where
     Ok(output)
 }
 
-/// Same as `to_bytes` but use `limit` as max container depth instead of MAX_CONTAINER_DEPTH
+/// Same as [`to_bytes`] but use `limit` as max container depth instead of
+/// [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH).
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - `limit` exceeds [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH)
+/// - Any error condition from [`to_bytes`] occurs
 pub fn to_bytes_with_limit<T>(value: &T, limit: usize) -> Result<Vec<u8>>
 where
     T: ?Sized + Serialize,
@@ -99,7 +114,11 @@ where
     Ok(output)
 }
 
-/// Same as `to_bytes` but write directly into an `std::io::Write` object.
+/// Same as [`to_bytes`] but write directly into an [`std::io::Write`] object.
+///
+/// # Errors
+///
+/// Returns an error if any error condition from [`to_bytes`] occurs.
 pub fn serialize_into<W, T>(write: &mut W, value: &T) -> Result<()>
 where
     W: ?Sized + std::io::Write,
@@ -109,7 +128,14 @@ where
     value.serialize(serializer)
 }
 
-/// Same as `serialize_into` but use `limit` as max container depth instead of MAX_CONTAINER_DEPTH
+/// Same as [`serialize_into`] but use `limit` as max container depth instead of
+/// [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH).
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - `limit` exceeds [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH)
+/// - Any error condition from [`serialize_into`] occurs
 pub fn serialize_into_with_limit<W, T>(write: &mut W, value: &T, limit: usize) -> Result<()>
 where
     W: ?Sized + std::io::Write,
@@ -141,7 +167,14 @@ impl std::io::Write for WriteCounter {
     }
 }
 
-/// Same as `to_bytes` but only return the size of the serialized bytes.
+/// Same as [`to_bytes`] but only return the size of the serialized bytes.
+///
+/// This is useful for pre-allocating buffers or validating size constraints
+/// without actually performing the serialization.
+///
+/// # Errors
+///
+/// Returns an error if any error condition from [`to_bytes`] occurs.
 pub fn serialized_size<T>(value: &T) -> Result<usize>
 where
     T: ?Sized + Serialize,
@@ -151,7 +184,14 @@ where
     Ok(counter.0)
 }
 
-/// Same as `serialized_size` but use `limit` as max container depth instead of MAX_CONTAINER_DEPTH
+/// Same as [`serialized_size`] but use `limit` as max container depth instead of
+/// [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH).
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - `limit` exceeds [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH)
+/// - Any error condition from [`serialized_size`] occurs
 pub fn serialized_size_with_limit<T>(value: &T, limit: usize) -> Result<usize>
 where
     T: ?Sized + Serialize,
@@ -166,6 +206,10 @@ where
     Ok(counter.0)
 }
 
+/// Returns whether BCS is a human-readable format.
+///
+/// This always returns `false` as BCS is a binary format.
+#[must_use]
 pub fn is_human_readable() -> bool {
     let mut output = Vec::new();
     let serializer = Serializer::new(&mut output, crate::MAX_CONTAINER_DEPTH);
