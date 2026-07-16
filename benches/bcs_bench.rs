@@ -1,7 +1,9 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
+//
+// This file is modified from the original file in the diem/bcs repository.
 
-use bcs::{from_bytes, to_bytes, to_bytes_with_capacity};
+use calabi_bcs::{from_bytes, to_bytes, to_bytes_with_capacity};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};

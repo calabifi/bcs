@@ -1,5 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
+//
+// This file is modified from the original file in the diem/bcs repository.
 
 // For some reason deriving `Arbitrary` results in clippy firing a `unit_arg` violation
 #![allow(clippy::unit_arg)]
@@ -20,7 +22,7 @@ use proptest::prelude::*;
 use proptest_derive::Arbitrary;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use bcs::{
+use calabi_bcs::{
     from_bytes, from_bytes_with_limit, serialized_size, to_bytes, to_bytes_with_limit, Error,
     MAX_CONTAINER_DEPTH, MAX_SEQUENCE_LENGTH,
 };
@@ -696,7 +698,7 @@ fn test_recursion_limit_enum() {
 
 #[test]
 fn test_to_bytes_with_capacity() {
-    use bcs::to_bytes_with_capacity;
+    use calabi_bcs::to_bytes_with_capacity;
 
     let data = vec![1u32, 2, 3, 4, 5];
     let bytes = to_bytes_with_capacity(&data, 100).unwrap();
@@ -706,7 +708,7 @@ fn test_to_bytes_with_capacity() {
 
 #[test]
 fn test_serialized_size_with_limit() {
-    use bcs::{serialized_size, serialized_size_with_limit};
+    use calabi_bcs::{serialized_size, serialized_size_with_limit};
 
     let data = vec![1u32, 2, 3];
     let size = serialized_size_with_limit(&data, 10).unwrap();
@@ -719,7 +721,7 @@ fn test_serialized_size_with_limit() {
 
 #[test]
 fn test_serialize_into_with_limit_exceeding() {
-    use bcs::serialize_into_with_limit;
+    use calabi_bcs::serialize_into_with_limit;
 
     let data = 42u32;
     let mut output = Vec::new();
@@ -729,12 +731,12 @@ fn test_serialize_into_with_limit_exceeding() {
 
 #[test]
 fn test_is_human_readable() {
-    assert!(!bcs::is_human_readable());
+    assert!(!calabi_bcs::is_human_readable());
 }
 
 #[test]
 fn test_from_bytes_seed() {
-    use bcs::from_bytes_seed;
+    use calabi_bcs::from_bytes_seed;
     use serde::de::DeserializeSeed;
 
     struct U32Seed;
@@ -757,7 +759,7 @@ fn test_from_bytes_seed() {
 
 #[test]
 fn test_from_bytes_seed_with_limit() {
-    use bcs::from_bytes_seed_with_limit;
+    use calabi_bcs::from_bytes_seed_with_limit;
     use serde::de::DeserializeSeed;
 
     struct U32Seed;
@@ -813,7 +815,7 @@ fn test_eof_error_in_read_bytes() {
 
 #[test]
 fn test_test_helpers() {
-    use bcs::test_helpers::assert_canonical_encode_decode;
+    use calabi_bcs::test_helpers::assert_canonical_encode_decode;
 
     assert_canonical_encode_decode(&42u32);
     assert_canonical_encode_decode(&"hello".to_string());

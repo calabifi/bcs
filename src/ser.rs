@@ -1,5 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
+//
+// This file is modified from the original file in the diem/bcs repository.
 
 use crate::error::{Error, Result};
 use serde::{ser, Serialize};
@@ -18,7 +20,7 @@ use serde::{ser, Serialize};
 /// # Examples
 ///
 /// ```
-/// use bcs::to_bytes;
+/// use calabi_bcs::to_bytes;
 /// use serde::Serialize;
 ///
 /// #[derive(Serialize)]
@@ -71,7 +73,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use bcs::to_bytes_with_capacity;
+/// use calabi_bcs::to_bytes_with_capacity;
 /// use serde::Serialize;
 ///
 /// #[derive(Serialize)]

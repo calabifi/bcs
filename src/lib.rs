@@ -1,5 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
+//
+// This file is modified from the original file in the diem/bcs repository.
 
 #![forbid(unsafe_code)]
 
@@ -132,7 +134,7 @@
 //! is present then the serialized form of that data follows. For example:
 //!
 //! ```rust
-//! # use bcs::{Result, to_bytes};
+//! # use calabi_bcs::{Result, to_bytes};
 //! # fn main() -> Result<()> {
 //! let some_data: Option<u8> = Some(8);
 //! assert_eq!(to_bytes(&some_data)?, vec![1, 8]);
@@ -153,7 +155,7 @@
 //! `MAX_SEQUENCE_LENGTH` elements long or less.
 //!
 //! ```rust
-//! # use bcs::{Result, to_bytes};
+//! # use calabi_bcs::{Result, to_bytes};
 //! # fn main() -> Result<()> {
 //! let fixed: [u16; 3] = [1, 2, 3];
 //! assert_eq!(to_bytes(&fixed)?, vec![1, 0, 2, 0, 3, 0]);
@@ -173,7 +175,7 @@
 //! representation of the string.
 //!
 //! ```rust
-//! # use bcs::{Result, to_bytes};
+//! # use calabi_bcs::{Result, to_bytes};
 //! # fn main() -> Result<()> {
 //! // Note that this string has 10 characters but has a byte length of 24
 //! let utf8_str = "çå∞≠¢õß∂ƒ∫";
@@ -194,7 +196,7 @@
 //! defined within the tuple, i.e. [tuple.0, tuple.2].
 //!
 //! ```rust
-//! # use bcs::{Result, to_bytes};
+//! # use calabi_bcs::{Result, to_bytes};
 //! # fn main() -> Result<()> {
 //! let tuple = (-1i8, "diem");
 //! let expecting = vec![0xFF, 4, b'd', b'i', b'e', b'm'];
@@ -212,7 +214,7 @@
 //! defines the organization within the serialization stream.
 //!
 //! ```rust
-//! # use bcs::{Result, to_bytes};
+//! # use calabi_bcs::{Result, to_bytes};
 //! # use serde::Serialize;
 //! # fn main() -> Result<()> {
 //! #[derive(Serialize)]
@@ -259,7 +261,7 @@
 //! of `0`, the second an index of `1`, etc.
 //!
 //! ```rust
-//! # use bcs::{Result, to_bytes};
+//! # use calabi_bcs::{Result, to_bytes};
 //! # use serde::Serialize;
 //! # fn main() -> Result<()> {
 //! #[derive(Serialize)]
@@ -289,7 +291,7 @@
 //! it is preceded by the number of tuples, encoded in ULEB128.
 //!
 //! ```rust
-//! # use bcs::{Result, to_bytes};
+//! # use calabi_bcs::{Result, to_bytes};
 //! # use std::collections::HashMap;
 //! # fn main() -> Result<()> {
 //! let mut map = HashMap::new();

@@ -1,5 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
+//
+// This file is modified from the original file in the diem/bcs repository.
 
 use crate::error::{Error, Result};
 use serde::de::{self, Deserialize, DeserializeSeed, IntoDeserializer, Visitor};
@@ -27,7 +29,7 @@ use std::convert::{TryFrom, TryInto};
 /// # Examples
 ///
 /// ```
-/// use bcs::from_bytes;
+/// use calabi_bcs::from_bytes;
 /// use serde::Deserialize;
 ///
 /// #[derive(Deserialize)]

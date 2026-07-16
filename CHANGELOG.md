@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.5]
+
+Fix broken tests
+
 ## [v0.1.4]
 
 > Includes security, performance, and tooling improvements merged from the
