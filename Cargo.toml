@@ -1,5 +1,5 @@
 [package]
-name = "bcs"
+name = "calabi-bcs"
 version = "0.1.4"
 authors = ["Diem <opensource@diem.com>"]
 description = "Binary Canonical Serialization (BCS)"
