@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+> Includes security, performance, and tooling improvements merged from the
+> `optimization` branch (aptos-labs/bcs, unmerged upstream, 6 commits by
+> @gregnazario, merged 2026-07-16). See original branch for full commit history.
+
 ### Security
 
 - **Memory amplification protection**: Deserialization now validates that claimed sequence/string lengths are plausible given the remaining input, preventing DoS attacks where a small malicious payload could trigger large memory allocations.
