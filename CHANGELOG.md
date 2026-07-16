@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.1.4]
 
 > Includes security, performance, and tooling improvements merged from the
 > `optimization` branch (aptos-labs/bcs, unmerged upstream, 6 commits by
