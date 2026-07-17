@@ -1,7 +1,4 @@
 [workspace]
-members = [
-    "bcs",
-    "bcs-derive",
-]
+members = ["bcs", "bcs-derive"]
 
 resolver = "2"

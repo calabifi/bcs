@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.7]
+
+Manifest updates
+
 ## [v0.1.6]
 
 Make `calabi-bcs` (de)serialization explicitly opt-in

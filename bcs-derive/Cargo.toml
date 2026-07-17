@@ -4,6 +4,7 @@ name = "bcs-derive"
 license = "Apache-2.0"
 description = "Derive macros for `calabi-bcs`"
 version = "0.1.0"
+repository = "https://github.com/calabifi/bcs"
 
 [lib]
 proc-macro = true
