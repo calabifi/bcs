@@ -1,6 +1,7 @@
 [package]
 edition = "2021"
 name = "bcs-derive"
+description = "Derive macros for `calabi-bcs`"
 version = "0.1.0"
 
 [lib]
