@@ -1,0 +1,2 @@
+createSrcSidebar('[["bcs_derive",["",[],["lib.rs"]]],["calabi_bcs",["",[],["de.rs","error.rs","lib.rs","ser.rs","std_impls.rs","test_helpers.rs","traits.rs"]]]]');
+//{"start":19,"fragment_lengths":[33,107]}
