@@ -1,14 +1,12 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
-//
-// This file is modified from the original file in the diem/bcs repository.
 
-use calabi_bcs::{from_bytes, to_bytes, to_bytes_with_capacity};
+use calabi_bcs::{from_bytes, to_bytes, to_bytes_with_capacity, Bcs};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Serialize, Deserialize, Bcs)]
 struct SimpleStruct {
     a: u64,
     b: u32,
@@ -17,7 +15,7 @@ struct SimpleStruct {
     e: bool,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Serialize, Deserialize, Bcs)]
 struct ComplexStruct {
     id: u64,
     name: String,
@@ -87,16 +85,11 @@ pub fn serialize_benchmarks(c: &mut Criterion) {
 
     // Maps
     let mut btree_map = BTreeMap::new();
-    let mut hash_map = HashMap::new();
     for i in 0u32..2000u32 {
         btree_map.insert(i, i);
-        hash_map.insert(i, i);
     }
     group.bench_function("btree_map_2000", |b| {
         b.iter(|| to_bytes(black_box(&btree_map)).unwrap());
-    });
-    group.bench_function("hash_map_2000", |b| {
-        b.iter(|| to_bytes(black_box(&hash_map)).unwrap());
     });
 
     group.finish();

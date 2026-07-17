@@ -1,6 +1,6 @@
 [package]
 name = "calabi-bcs"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Diem <opensource@diem.com>"]
 description = "Binary Canonical Serialization (BCS)"
 repository = "https://github.com/diem/bcs"
@@ -12,11 +12,19 @@ edition = "2018"
 [dependencies]
 thiserror = "1.0.22"
 serde = { version = "1.0.117", features = ["derive"] }
+bcs-derive = { path = "./bcs-derive" }
+bigdecimal = { version = "0.4.0", optional = true, features = ["serde"] }
+rust_decimal = { version = "1.40.0", optional = true, features = ["serde"] }
 
 [dev-dependencies]
 criterion = "0.3.3"
 proptest = "0.10.1"
 proptest-derive = "0.2.0"
+
+[features]
+default = []
+bigdecimal = ["dep:bigdecimal"]
+decimal = ["rust_decimal"]
 
 [[bench]]
 name = "bcs_bench"

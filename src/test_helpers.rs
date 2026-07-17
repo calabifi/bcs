@@ -1,5 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
+//
+// This file is modified from the original file in the diem/bcs repository.
 
 /// Asserts that a value can be serialized and deserialized back to an equal value.
 ///
@@ -13,7 +15,7 @@
 /// - The deserialized value is not equal to the original
 pub fn assert_canonical_encode_decode<T>(t: &T)
 where
-    T: serde::Serialize + serde::de::DeserializeOwned + std::fmt::Debug + PartialEq,
+    T: crate::TBCSSerialize + crate::TBCSDeserializeOwned + std::fmt::Debug + PartialEq,
 {
     let bytes = crate::to_bytes(t).unwrap();
     let s: T = crate::from_bytes(&bytes).unwrap();

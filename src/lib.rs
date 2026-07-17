@@ -214,17 +214,17 @@
 //! defines the organization within the serialization stream.
 //!
 //! ```rust
-//! # use calabi_bcs::{Result, to_bytes};
+//! # use calabi_bcs::{Result, to_bytes, BcsSerialize};
 //! # use serde::Serialize;
 //! # fn main() -> Result<()> {
-//! #[derive(Serialize)]
+//! #[derive(Serialize, BcsSerialize)]
 //! struct MyStruct {
 //!     boolean: bool,
 //!     bytes: Vec<u8>,
 //!     label: String,
 //! }
 //!
-//! #[derive(Serialize)]
+//! #[derive(Serialize, BcsSerialize)]
 //! struct Wrapper {
 //!     inner: MyStruct,
 //!     name: String,
@@ -261,10 +261,10 @@
 //! of `0`, the second an index of `1`, etc.
 //!
 //! ```rust
-//! # use calabi_bcs::{Result, to_bytes};
+//! # use calabi_bcs::{Result, to_bytes, BcsSerialize};
 //! # use serde::Serialize;
 //! # fn main() -> Result<()> {
-//! #[derive(Serialize)]
+//! #[derive(Serialize, BcsSerialize)]
 //! enum E {
 //!     Variant0(u16),
 //!     Variant1(u8),
@@ -292,9 +292,9 @@
 //!
 //! ```rust
 //! # use calabi_bcs::{Result, to_bytes};
-//! # use std::collections::HashMap;
+//! # use std::collections::BTreeMap;
 //! # fn main() -> Result<()> {
-//! let mut map = HashMap::new();
+//! let mut map = BTreeMap::new();
 //! map.insert(b'e', b'f');
 //! map.insert(b'a', b'b');
 //! map.insert(b'c', b'd');
@@ -308,7 +308,9 @@
 mod de;
 mod error;
 mod ser;
+mod std_impls;
 pub mod test_helpers;
+mod traits;
 
 /// Variable length sequences in BCS are limited to max length of 2^31 - 1.
 pub const MAX_SEQUENCE_LENGTH: usize = (1 << 31) - 1;
@@ -316,9 +318,11 @@ pub const MAX_SEQUENCE_LENGTH: usize = (1 << 31) - 1;
 /// Maximal allowed depth of BCS data, counting only structs and enums.
 pub const MAX_CONTAINER_DEPTH: usize = 500;
 
+pub use bcs_derive::{Bcs, BcsDeserialize, BcsSerialize};
 pub use de::{from_bytes, from_bytes_seed, from_bytes_seed_with_limit, from_bytes_with_limit};
 pub use error::{Error, Result};
 pub use ser::{
     is_human_readable, serialize_into, serialize_into_with_limit, serialized_size,
     serialized_size_with_limit, to_bytes, to_bytes_with_capacity, to_bytes_with_limit,
 };
+pub use traits::{TBCSDeserialize, TBCSDeserializeOwned, TBCSSerialize};

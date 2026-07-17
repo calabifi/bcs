@@ -3,8 +3,11 @@
 //
 // This file is modified from the original file in the diem/bcs repository.
 
-use crate::error::{Error, Result};
-use serde::de::{self, Deserialize, DeserializeSeed, IntoDeserializer, Visitor};
+use crate::{
+    error::{Error, Result},
+    TBCSDeserialize,
+};
+use serde::de::{self, DeserializeSeed, IntoDeserializer, Visitor};
 use std::convert::{TryFrom, TryInto};
 
 /// Deserializes a `&[u8]` into a type.
@@ -29,16 +32,16 @@ use std::convert::{TryFrom, TryInto};
 /// # Examples
 ///
 /// ```
-/// use calabi_bcs::from_bytes;
-/// use serde::Deserialize;
+/// use calabi_bcs::{from_bytes, Bcs};
+/// use serde::{Deserialize, Serialize};
 ///
-/// #[derive(Deserialize)]
+/// #[derive(Serialize, Deserialize, Bcs)]
 /// struct Ip([u8; 4]);
 ///
-/// #[derive(Deserialize)]
+/// #[derive(Serialize, Deserialize, Bcs)]
 /// struct Port(u16);
 ///
-/// #[derive(Deserialize)]
+/// #[derive(Serialize, Deserialize, Bcs)]
 /// struct SocketAddr {
 ///     ip: Ip,
 ///     port: Port,
@@ -52,7 +55,7 @@ use std::convert::{TryFrom, TryInto};
 /// ```
 pub fn from_bytes<'a, T>(bytes: &'a [u8]) -> Result<T>
 where
-    T: Deserialize<'a>,
+    T: TBCSDeserialize<'a>,
 {
     let mut deserializer = Deserializer::new(bytes, crate::MAX_CONTAINER_DEPTH);
     let t = T::deserialize(&mut deserializer)?;
@@ -69,7 +72,7 @@ where
 /// - Any error condition from [`from_bytes`] occurs
 pub fn from_bytes_with_limit<'a, T>(bytes: &'a [u8], limit: usize) -> Result<T>
 where
-    T: Deserialize<'a>,
+    T: TBCSDeserialize<'a>,
 {
     if limit > crate::MAX_CONTAINER_DEPTH {
         return Err(Error::NotSupported(

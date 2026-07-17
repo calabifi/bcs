@@ -1,7 +1,5 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
-//
-// This file is modified from the original file in the diem/bcs repository.
 
 // For some reason deriving `Arbitrary` results in clippy firing a `unit_arg` violation
 #![allow(clippy::unit_arg)]
@@ -20,16 +18,16 @@ use std::{
 
 use proptest::prelude::*;
 use proptest_derive::Arbitrary;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use calabi_bcs::{
-    from_bytes, from_bytes_with_limit, serialized_size, to_bytes, to_bytes_with_limit, Error,
-    MAX_CONTAINER_DEPTH, MAX_SEQUENCE_LENGTH,
+    from_bytes, from_bytes_with_limit, serialized_size, to_bytes, to_bytes_with_limit, Bcs, Error,
+    TBCSDeserializeOwned, TBCSSerialize, MAX_CONTAINER_DEPTH, MAX_SEQUENCE_LENGTH,
 };
 
 fn is_same<T>(t: T)
 where
-    T: Serialize + DeserializeOwned + fmt::Debug + PartialEq,
+    T: TBCSSerialize + TBCSDeserializeOwned + fmt::Debug + PartialEq,
 {
     let bytes = to_bytes(&t).unwrap();
     let s: T = from_bytes(&bytes).unwrap();
@@ -39,7 +37,7 @@ where
 
 // TODO deriving `Arbitrary` is currently broken for enum types
 // Once AltSysrq/proptest#163 is merged we can use `Arbitrary` again.
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Bcs, Deserialize, Serialize, PartialEq)]
 enum E {
     Unit,
     Newtype(u16),
@@ -70,7 +68,7 @@ fn test_enum() {
     is_same(s);
 }
 
-#[derive(Arbitrary, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Arbitrary, Debug, Deserialize, Serialize, Bcs, PartialEq)]
 struct S {
     int: u16,
     option: Option<u8>,
@@ -270,7 +268,7 @@ fn invalid_utf8() {
 
 #[test]
 fn uleb_encoding_and_variant() {
-    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    #[derive(Serialize, Deserialize, Bcs, Debug, PartialEq)]
     enum Test {
         One,
         Two,
@@ -427,7 +425,7 @@ fn test_char() {
 
 #[test]
 fn zero_copy_parse() {
-    #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
+    #[derive(Serialize, Deserialize, Bcs, Eq, PartialEq, Debug)]
     struct Foo<'a> {
         borrowed_str: &'a str,
         borrowed_bytes: &'a [u8],
@@ -454,7 +452,7 @@ fn cow() {
     let mut large_map = BTreeMap::new();
     large_map.insert(1, 2);
 
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Bcs, Debug)]
     enum Message<'a> {
         M1(Cow<'a, Vec<u32>>),
         M2(Cow<'a, BTreeMap<u32, u32>>),
@@ -463,7 +461,7 @@ fn cow() {
     // M1
     {
         let serialized = to_bytes(&Message::M1(Cow::Borrowed(&large_object))).unwrap();
-        let deserialized: Message<'static> = from_bytes(&serialized).unwrap();
+        let deserialized: Message<'_> = from_bytes(&serialized).unwrap();
 
         match deserialized {
             Message::M1(b) => assert_eq!(b.into_owned(), large_object),
@@ -474,7 +472,7 @@ fn cow() {
     // M2
     {
         let serialized = to_bytes(&Message::M2(Cow::Borrowed(&large_map))).unwrap();
-        let deserialized: Message<'static> = from_bytes(&serialized).unwrap();
+        let deserialized: Message<'_> = from_bytes(&serialized).unwrap();
 
         match deserialized {
             Message::M2(b) => assert_eq!(b.into_owned(), large_map),
@@ -519,10 +517,10 @@ fn path_buf() {
     assert!(path.to_str() == decoded.to_str());
 }
 
-#[derive(Arbitrary, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Arbitrary, Debug, Deserialize, Serialize, Bcs, PartialEq)]
 struct Addr([u8; 32]);
 
-#[derive(Arbitrary, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Arbitrary, Debug, Deserialize, Serialize, Bcs, PartialEq)]
 struct Bar {
     a: u64,
     b: Vec<u8>,
@@ -530,7 +528,7 @@ struct Bar {
     d: u32,
 }
 
-#[derive(Arbitrary, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Arbitrary, Debug, Deserialize, Serialize, Bcs, PartialEq)]
 struct Foo {
     a: u64,
     b: Vec<u8>,
@@ -581,7 +579,7 @@ fn serde_known_vector() {
     assert_eq!(f, deserialized_foo);
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Deserialize, Serialize, Bcs, PartialEq, Eq, Clone)]
 struct List {
     next: Option<(usize, Box<List>)>,
 }
@@ -677,7 +675,7 @@ fn test_recursion_limit() {
     );
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Bcs)]
 enum EnumA {
     ValueA,
 }
@@ -786,7 +784,7 @@ fn test_from_bytes_seed_with_limit() {
 
 #[test]
 fn test_unit_struct_serde() {
-    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    #[derive(Serialize, Deserialize, Bcs, Debug, PartialEq)]
     struct UnitStruct;
 
     let bytes = to_bytes(&UnitStruct).unwrap();
@@ -796,7 +794,7 @@ fn test_unit_struct_serde() {
 
 #[test]
 fn test_tuple_struct_serde() {
-    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    #[derive(Serialize, Deserialize, Bcs, Debug, PartialEq)]
     struct TupleStruct(u32, String);
 
     let data = TupleStruct(42, "hello".to_string());
@@ -920,9 +918,7 @@ fn test_memory_amplification_small_valid_length() {
 
 #[test]
 fn test_duplicate_map_keys_serialization() {
-    // Create a HashMap and manually serialize it to test the duplicate detection.
-    // Since HashMap doesn't allow duplicate keys directly, we need to test via
-    // serde's serialize_map interface with a custom type.
+    // Exercise serde's serialize_map path with a custom type that emits duplicate keys.
     #[derive(Debug)]
     struct DuplicateKeyMap;
 
@@ -939,22 +935,21 @@ fn test_duplicate_map_keys_serialization() {
         }
     }
 
+    impl TBCSSerialize for DuplicateKeyMap {}
+
     let err = to_bytes(&DuplicateKeyMap).unwrap_err();
     assert!(matches!(err, Error::NonCanonicalMap));
 }
 
 #[test]
 fn test_map_serialization_no_duplicates() {
-    use std::collections::HashMap;
-
-    // Normal map without duplicates should work fine
-    let mut map = HashMap::new();
-    map.insert(1u32, "one");
-    map.insert(2u32, "two");
-    map.insert(3u32, "three");
+    let mut map = BTreeMap::new();
+    map.insert(1u32, "one".to_string());
+    map.insert(2u32, "two".to_string());
+    map.insert(3u32, "three".to_string());
 
     let bytes = to_bytes(&map).unwrap();
-    let result: HashMap<u32, String> = from_bytes(&bytes).unwrap();
+    let result: BTreeMap<u32, String> = from_bytes(&bytes).unwrap();
 
     assert_eq!(result.len(), 3);
     assert_eq!(result.get(&1).map(String::as_str), Some("one"));

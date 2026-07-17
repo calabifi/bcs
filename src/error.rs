@@ -1,5 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // SPDX-License-Identifier: Apache-2.0
+//
+// This file is modified from the original file in the diem/bcs repository.
 
 use serde::{de, ser};
 use std::fmt;

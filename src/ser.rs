@@ -3,7 +3,10 @@
 //
 // This file is modified from the original file in the diem/bcs repository.
 
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    TBCSSerialize,
+};
 use serde::{ser, Serialize};
 
 /// Serialize the given data structure as a `Vec<u8>` of BCS.
@@ -11,7 +14,7 @@ use serde::{ser, Serialize};
 /// # Errors
 ///
 /// Returns an error if:
-/// - `T`'s implementation of [`Serialize`] decides to fail
+/// - `T`'s implementation of [`serde::Serialize`] decides to fail
 /// - `T` contains sequences longer than [`MAX_SEQUENCE_LENGTH`](crate::MAX_SEQUENCE_LENGTH)
 /// - `T` attempts to serialize an unsupported datatype (f32, f64, or char)
 /// - The container depth exceeds [`MAX_CONTAINER_DEPTH`](crate::MAX_CONTAINER_DEPTH)
@@ -20,16 +23,16 @@ use serde::{ser, Serialize};
 /// # Examples
 ///
 /// ```
-/// use calabi_bcs::to_bytes;
+/// use calabi_bcs::{to_bytes, BcsSerialize};
 /// use serde::Serialize;
 ///
-/// #[derive(Serialize)]
+/// #[derive(Serialize, BcsSerialize)]
 /// struct Ip([u8; 4]);
 ///
-/// #[derive(Serialize)]
+/// #[derive(Serialize, BcsSerialize)]
 /// struct Port(u16);
 ///
-/// #[derive(Serialize)]
+/// #[derive(Serialize, BcsSerialize)]
 /// struct Service {
 ///     ip: Ip,
 ///     port: Vec<Port>,
@@ -54,7 +57,7 @@ use serde::{ser, Serialize};
 /// ```
 pub fn to_bytes<T>(value: &T) -> Result<Vec<u8>>
 where
-    T: ?Sized + Serialize,
+    T: ?Sized + TBCSSerialize,
 {
     let mut output = Vec::new();
     serialize_into(&mut output, value)?;
@@ -73,10 +76,10 @@ where
 /// # Examples
 ///
 /// ```
-/// use calabi_bcs::to_bytes_with_capacity;
+/// use calabi_bcs::{to_bytes_with_capacity, BcsSerialize};
 /// use serde::Serialize;
 ///
-/// #[derive(Serialize)]
+/// #[derive(Serialize, BcsSerialize)]
 /// struct Data {
 ///     values: Vec<u64>,
 /// }
@@ -87,7 +90,7 @@ where
 /// ```
 pub fn to_bytes_with_capacity<T>(value: &T, capacity: usize) -> Result<Vec<u8>>
 where
-    T: ?Sized + Serialize,
+    T: ?Sized + TBCSSerialize,
 {
     let mut output = Vec::with_capacity(capacity);
     serialize_into(&mut output, value)?;
@@ -104,7 +107,7 @@ where
 /// - Any error condition from [`to_bytes`] occurs
 pub fn to_bytes_with_limit<T>(value: &T, limit: usize) -> Result<Vec<u8>>
 where
-    T: ?Sized + Serialize,
+    T: ?Sized + TBCSSerialize,
 {
     if limit > crate::MAX_CONTAINER_DEPTH {
         return Err(Error::NotSupported(
@@ -124,7 +127,7 @@ where
 pub fn serialize_into<W, T>(write: &mut W, value: &T) -> Result<()>
 where
     W: ?Sized + std::io::Write,
-    T: ?Sized + Serialize,
+    T: ?Sized + TBCSSerialize,
 {
     let serializer = Serializer::new(write, crate::MAX_CONTAINER_DEPTH);
     value.serialize(serializer)
@@ -141,7 +144,7 @@ where
 pub fn serialize_into_with_limit<W, T>(write: &mut W, value: &T, limit: usize) -> Result<()>
 where
     W: ?Sized + std::io::Write,
-    T: ?Sized + Serialize,
+    T: ?Sized + TBCSSerialize,
 {
     if limit > crate::MAX_CONTAINER_DEPTH {
         return Err(Error::NotSupported(
@@ -179,7 +182,7 @@ impl std::io::Write for WriteCounter {
 /// Returns an error if any error condition from [`to_bytes`] occurs.
 pub fn serialized_size<T>(value: &T) -> Result<usize>
 where
-    T: ?Sized + Serialize,
+    T: ?Sized + TBCSSerialize,
 {
     let mut counter = WriteCounter(0);
     serialize_into(&mut counter, value)?;
@@ -196,7 +199,7 @@ where
 /// - Any error condition from [`serialized_size`] occurs
 pub fn serialized_size_with_limit<T>(value: &T, limit: usize) -> Result<usize>
 where
-    T: ?Sized + Serialize,
+    T: ?Sized + TBCSSerialize,
 {
     if limit > crate::MAX_CONTAINER_DEPTH {
         return Err(Error::NotSupported(
